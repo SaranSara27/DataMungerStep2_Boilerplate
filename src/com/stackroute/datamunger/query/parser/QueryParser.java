@@ -1,5 +1,10 @@
 package com.stackroute.datamunger.query.parser;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.List;
+
 /*There are total 4 DataMungerTest file:
  * 
  * 1)DataMungerTestTask1.java file is for testing following 4 methods
@@ -30,7 +35,14 @@ public class QueryParser {
 	 * QueryParameter class
 	 */
 	public QueryParameter parseQuery(String queryString) {
-
+		queryParameter.setFileName(getFileName(queryString));
+		queryParameter.setBaseQuery(getBaseQuery(queryString));
+		queryParameter.setOrderByFields(getOrderByClause(queryString));
+		queryParameter.setGroupByFields(getGroupByFields(queryString));
+		queryParameter.setFields(getFields(queryString));
+		queryParameter.setRestrictions(getRestrictions(queryString));
+		queryParameter.setLogicalOperators(getLogicalOperators(queryString));
+		queryParameter.setAggregateFunctions(getAggregateFunctions(queryString));
 		return queryParameter;
 	}
 
@@ -38,6 +50,9 @@ public class QueryParser {
 	 * Extract the name of the file from the query. File name can be found after the
 	 * "from" clause.
 	 */
+	public String getFileName(String queryString) {
+		return queryString.split("from")[1].trim().split(" ")[0].trim();
+	}
 
 	/*
 	 * 
@@ -45,6 +60,10 @@ public class QueryParser {
 	 * baseQuery from the query string. BaseQuery contains from the beginning of the
 	 * query till the where clause
 	 */
+	
+	public String getBaseQuery(String queryString) {
+		return queryString.split("where")[0].trim();
+	}
 
 	/*
 	 * extract the order by fields from the query string. Please note that we will
@@ -53,6 +72,12 @@ public class QueryParser {
 	 * data/ipl.csv order by city from the query mentioned above, we need to extract
 	 * "city". Please note that we can have more than one order by fields.
 	 */
+	public List<String> getOrderByClause(String queryString){
+		if(queryString.contains("order by")) {
+			return new ArrayList<String>(Arrays.asList(queryString.split("order by")[1].trim().split(",")));
+		}
+		return null;
+	}
 
 	/*
 	 * Extract the group by fields from the query string. Please note that we will
@@ -61,6 +86,13 @@ public class QueryParser {
 	 * data/ipl.csv group by city from the query mentioned above, we need to extract
 	 * "city". Please note that we can have more than one group by fields.
 	 */
+	
+	public List<String> getGroupByFields(String queryString){
+		if(queryString.contains("group by")) {
+			return new ArrayList<String>(Arrays.asList(queryString.split("group by")[1].trim().split("order by")[0].trim().split(",")));
+		}
+		return null;
+	}
 
 	/*
 	 * Extract the selected fields from the query string. Please note that we will
@@ -70,6 +102,11 @@ public class QueryParser {
 	 * note that we might have a field containing name "from_date" or "from_hrs".
 	 * Hence, consider this while parsing.
 	 */
+	
+	public List<String> getFields(String queryString){
+		return new ArrayList<String>(Arrays.asList(queryString.toLowerCase().split("from")[0].trim().split(" ")[1].split(",")));
+	}
+	
 
 	/*
 	 * Extract the conditions from the query string(if exists). for each condition,
@@ -85,7 +122,61 @@ public class QueryParser {
 	 * Please consider this while parsing the conditions.
 	 * 
 	 */
+	public List<Restriction> getRestrictions(String queryString){
+   		String[] firstsplit=queryString.trim().split("where");
+   		
+   		if(firstsplit.length==1)
+   			{return null ;}
+   		
+   		String[] secondSplit=firstsplit[1].trim().split("order by|group by");
+   		String[] conditions=secondSplit[0].trim().split(" and | or ");
+   		LinkedList<Restriction>restrictions=new LinkedList<Restriction>();
+   		for(int i=0;i<conditions.length;i++)
+   		{
+   			
+   			if(conditions[i].contains(">"))
+   			 {
+   				String[]test=conditions[i].trim().split(">");
+   				Restriction r=new Restriction(test[0].trim(),test[1].trim(),">");
+   				restrictions.add(r);
+   			 }
+   			 if(conditions[i].contains("<"))
+   			 {
+   				String[]test=conditions[i].trim().split("<");
+   				Restriction r=new Restriction(test[0].trim(),test[1].trim(),"<");
+   				restrictions.add(r);
+   			 }
+   			 if(conditions[i].contains("="))
+   			 {
+   				String[]test=conditions[i].trim().split("=");
+   				Restriction r;
+   				if(test[1].trim().matches("[0-9]*")) {
+   					r=new Restriction(test[0].trim(),test[1].trim(),"=");
+   				}
+   				else {
+   					r=new Restriction(test[0].trim(),test[1].trim().split("'")[1],"=");
+   				}
+   				restrictions.add(r);
+   			 }
+   			 if(conditions[i].contains(">="))
+   			 {
+   				String[]test=conditions[i].trim().split(">=");
+   				Restriction r=new Restriction(test[0].trim(),test[1].trim(),">=");
+   				restrictions.add(r);
+   			 }
+   			if(conditions[i].contains("<="))
+   			 {
+   				String[]test=conditions[i].trim().split("<=");
+   				Restriction r=new Restriction(test[0].trim(),test[1].trim(),"<=");
+   				restrictions.add(r);
+   			 }
+   			
+   			 
+   		}
 
+   		return restrictions;
+	}
+	
 	/*
 	 * Extract the logical operators(AND/OR) from the query, if at all it is
 	 * present. For eg: select city,winner,team1,team2,player_of_match from
@@ -95,6 +186,21 @@ public class QueryParser {
 	 * The query mentioned above in the example should return a List of Strings
 	 * containing [or,and]
 	 */
+	public List<String> getLogicalOperators(String queryString) {
+		LinkedList<String>logicalOperators=new LinkedList<String>();
+		String[] firstsplit=queryString.toLowerCase().trim().split("where");
+		
+		if(firstsplit.length==1)
+			return null;
+		String[] condition=firstsplit[1].trim().split(" ");
+		for(String key:condition) {
+			if(key.equals("and") || key.equals("or") ) 
+				logicalOperators.add(key);
+			
+		}
+		return logicalOperators;
+		
+	}
 
 	/*
 	 * Extract the aggregate functions from the query. The presence of the aggregate
@@ -109,5 +215,24 @@ public class QueryParser {
 	 * 
 	 * 
 	 */
+	public List<AggregateFunction> getAggregateFunctions(String queryString) {
+        String[] input=queryString.split("[\\s,;)(]+");
+        List<AggregateFunction> list=new LinkedList<AggregateFunction>();
+        for(int i=0;i<input.length;i++)
+        {
+            if(input[i].equals("sum")) {AggregateFunction obj=new AggregateFunction(input[i+1],"sum");list.add(obj);}
+            else if(input[i].equals("count")) {AggregateFunction obj=new AggregateFunction(input[i+1],"count");list.add(obj);}
+            else if(input[i].equals("min")) {AggregateFunction obj=new AggregateFunction(input[i+1],"min");list.add(obj);}
+            else if(input[i].equals("max")) {AggregateFunction obj=new AggregateFunction(input[i+1],"max");list.add(obj);}
+            else if(input[i].equals("avg")) {AggregateFunction obj=new AggregateFunction(input[i+1],"avg");list.add(obj);}
+            else {continue;
+            }
+        }
+        if(list.size()!=0)
+        {
+            return list;
+        }
+        else {return null;}
+    }
 
 }
